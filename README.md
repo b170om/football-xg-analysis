@@ -75,8 +75,7 @@ The final model was retrained on the training and validation seasons together, t
 
 We also evaluated the final model separately for each league, without retraining or adjusting its parameters. The chart compares test accuracy with the home-win baseline in each league.
 
-![Final model accuracy compared with the home-win baseline across leagues](figures/leag   ue_performance.png)
-
+![Final model accuracy compared with the home-win baseline across leagues](figures/league_performance.png)
 | League | Matches | Model accuracy | Home-win baseline |
 | --- | ---: | ---: | ---: |
 | English Premier League | 377 | **58.6%** | 47.7% |
