@@ -50,14 +50,23 @@ The Elo experiment tested **16 combinations** of update factors (`K = 10, 20, 32
 | Logistic Regression — Combined | 51.73% | 0.376 | 0.998 |
 | Logistic Regression — Combined + League Position | 51.82% | 0.380 | 0.991 |
 | Random Forest — Combined | 51.00% | 0.363 | 1.001 |
-| Logistic Regression — Combined + Initial Elo (K=20, H=65) | 54.06% | 0.401 | 0.978 |
+| Logistic Regression — Combined + Elo (K=20, H=65) | 54.06% | 0.401 | 0.978 |
 | **Logistic Regression — Combined + Tuned Elo (K=32, H=65)** | **54.25%** | **0.404** | **0.977** |
 
 The comparison shows that adding strength-gap features and historical Elo ratings to the combined feature set improved validation accuracy from **51.82% to 54.25%**. Because strength gaps and Elo were introduced together in this comparison, the improvement cannot be attributed to Elo alone. Tuning the Elo parameters provided only a small additional gain over the initial configuration (54.06%). The leading parameter combinations performed nearly identically.
 
 ### Additional experiment: Promoted teams' Elo ratings
 
-We tested assigning lower initial Elo ratings to newly promoted teams, assuming they might be weaker than established top-division teams. However, this approach reduced validation accuracy, so we retained the original Elo initialization strategy.
+We tested a lower starting Elo (1400, 1450, or 1500) for promoted teams, identified as teams that were not in the same league in the previous season. Features, model, and Elo parameters were unchanged, and the comparison used the 2017/18 validation season only.
+
+| Starting Elo for promoted teams | Accuracy | Log Loss |
+| --- | ---: | ---: |
+| Original (1500 for new teams only) | **54.25%** | 0.977 |
+| 1400 | 53.91% | **0.974** |
+| 1450 | 53.77% | 0.975 |
+| 1500 | 53.82% | 0.976 |
+
+The best variant did not improve accuracy (−0.34 percentage points, 7 fewer correct predictions out of 2,057), and Log Loss improved only marginally (0.977 → 0.974). We kept the simpler original Elo initialization.
 
 ### Final held-out test (2018/19)
 
@@ -67,6 +76,7 @@ We tested assigning lower initial Elo ratings to newly promoted teams, assuming 
 | Macro F1 | 0.386 |
 | Log Loss | 0.984 |
 | Always-predict-home-win baseline | 44.65% |
+| Log Loss of predicting training outcome frequencies | 1.071 |
 | Test matches | 2,056 |
 
 The final model was retrained on the training and validation seasons together, then evaluated on the unseen 2018/19 season. It outperformed the test baseline by **7.49 percentage points** in accuracy. Validation performance was used for model selection; test results were not used to tune the model.
@@ -76,6 +86,7 @@ The final model was retrained on the training and validation seasons together, t
 We also evaluated the final model separately for each league, without retraining or adjusting its parameters. The chart compares test accuracy with the home-win baseline in each league.
 
 ![Final model accuracy compared with the home-win baseline across leagues](figures/league_performance.png)
+
 | League | Matches | Model accuracy | Home-win baseline |
 | --- | ---: | ---: | ---: |
 | English Premier League | 377 | **58.6%** | 47.7% |
@@ -91,38 +102,51 @@ The **English Premier League had the highest test accuracy (58.6%)**, improving 
 
 The final model predicted only **one draw** among 2,056 test matches and did not identify any of the **539 actual draws** correctly. The relatively modest Macro F1 score reflects this weakness. Accuracy alone does not fully describe performance across all three match outcomes.
 
+### Other limitations
+
+- **Elo cold start:** Teams that are new to the dataset start at 1500, while teams returning after relegation keep their previous rating.
+- **Log Loss:** The final model's Log Loss (0.984) improves on simply predicting the training outcome frequencies (1.071), but the improvement in predicted probabilities is modest.
+
 ## Reproduce the analysis
 
-1. Download `understat_per_game.csv` from the [Kaggle dataset](https://www.kaggle.com/datasets/slehkyi/extended-football-stats-for-european-leagues-xg).
-2. Place the CSV at `data/understat_per_game.csv` in the project root.
-3. Install the required Python packages:
+Tested with Python 3.11.
+
+1. Clone the repository and create a virtual environment:
+
+   ```bash
+   git clone https://github.com/b170om/football-xg-analysis.git
+   cd football-xg-analysis
+   python -m venv .venv
+   source .venv/bin/activate        # macOS / Linux
+   # .venv\Scripts\activate         # Windows
+   ```
+
+2. Install the dependencies (includes Jupyter):
 
    ```bash
    pip install -r requirements.txt
    ```
 
-4. Open `notebooks/football_analysis.ipynb` in Jupyter or VS Code and run its cells from top to bottom.
+3. Create a `data/` folder in the project root, download `understat_per_game.csv` from the [Kaggle dataset](https://www.kaggle.com/datasets/slehkyi/extended-football-stats-for-european-leagues-xg), and place it at `data/understat_per_game.csv`.
 
-The notebook reads the CSV with a relative path (`../data/understat_per_game.csv`), so run it from the `notebooks` directory or use a notebook environment that sets that directory as the working directory.
+4. Open the notebook and run all cells (Kernel → Restart & Run All):
+
+   ```bash
+   jupyter notebook notebooks/football_analysis.ipynb   # or: jupyter lab
+   ```
+
+The notebook uses paths relative to the `notebooks/` folder (`../data/understat_per_game.csv` and `../figures/`). Jupyter and VS Code set this automatically when the notebook is opened; if you run it another way, run it from the `notebooks/` directory.
 
 ## What I Learned
 
-This project gave me hands-on experience with the full data science workflow, from raw data to evaluating a predictive model.
+1. **Turning raw data into a modeling dataset:** The source data has one row per team per match, so I paired home and away records using league, date, goals, and xG, and verified that every match was paired exactly once (10,330 matches).
 
-1. **Working with real-world data:** I learned how to clean, organize, and transform raw football data, including combining team-level records into individual matches and preparing datasets for machine learning.
+2. **Preventing data leakage:** Every feature had to be known before kickoff: rolling averages use `shift(1)`, league positions are recorded before each match day, Elo ratings are stored before each update, and the data is split chronologically with a test season used only once.
 
-2. **Preventing data leakage:** I learned the importance of using only information available before each match. This required careful handling of historical features and chronological train, validation, and test splits.
+3. **Reading small differences honestly:** Many Elo configurations and the promoted-team experiment differed by only a few correct predictions out of about 2,000 matches. I learned to treat such differences as noise rather than as real improvements.
 
-3. **Feature engineering and domain knowledge:** I explored how football knowledge can be translated into meaningful predictive features, including recent team form, expected goals (xG), league positions, and Elo ratings.
-
-4. **Model experimentation and evaluation:** I gained experience comparing machine learning models, testing different feature combinations, and tuning hyperparameters. I also learned that more complex models do not necessarily perform better.
-
-5. **Critical thinking and problem-solving:** I learned to question assumptions, identify potential edge cases, and look for practical solutions rather than simply accepting the first result. Working with real data taught me to investigate unexpected behavior and think carefully about how each decision affects the analysis.
-
-6. **Turning theory into practice:** One of the most valuable parts of this project was applying concepts I had studied at university to a real-world problem. It helped me connect theoretical knowledge in statistics, machine learning, and data engineering with the challenges of building an actual predictive system.
-
-7. **Critically interpreting results:** I learned to look beyond accuracy and evaluate models using Macro F1, Log Loss, and confusion matrices. Although the final model outperformed the baseline, its difficulty predicting draws highlighted the importance of understanding and communicating model limitations.
+4. **Looking beyond accuracy:** Macro F1, Log Loss, and confusion matrices showed that the model almost never predicts draws, a limitation that accuracy alone hides.
 
 ## Potential next steps
 
-Investigate goal-based approaches (for example, Poisson models) and better treatment of draw probabilities. Any further model changes would require a new untouched evaluation period to provide an independent performance estimate.
+Investigate goal-based models (for example, Poisson regression) and better treatment of draw probabilities. Any further model changes would require a new untouched evaluation period to provide an independent performance estimate.
