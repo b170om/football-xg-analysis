@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+.env
+# Download the dataset from Kaggle instead of tracking it in Git
+data/*.csv
