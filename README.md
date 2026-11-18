@@ -55,19 +55,6 @@ The Elo experiment tested **16 combinations** of update factors (`K = 10, 20, 32
 
 The comparison shows that adding strength-gap features and historical Elo ratings to the combined feature set improved validation accuracy from **51.82% to 54.25%**. Because strength gaps and Elo were introduced together in this comparison, the improvement cannot be attributed to Elo alone. Tuning the Elo parameters provided only a small additional gain over the initial configuration (54.06%). The leading parameter combinations performed nearly identically.
 
-### Additional experiment: Promoted teams' Elo ratings
-
-We tested a lower starting Elo (1400, 1450, or 1500) for promoted teams, identified as teams that were not in the same league in the previous season. Features, model, and Elo parameters were unchanged, and the comparison used the 2017/18 validation season only.
-
-| Starting Elo for promoted teams | Accuracy | Log Loss |
-| --- | ---: | ---: |
-| Original (1500 for new teams only) | **54.25%** | 0.977 |
-| 1400 | 53.91% | **0.974** |
-| 1450 | 53.77% | 0.975 |
-| 1500 | 53.82% | 0.976 |
-
-The best variant did not improve accuracy (−0.34 percentage points, 7 fewer correct predictions out of 2,057), and Log Loss improved only marginally (0.977 → 0.974). We kept the simpler original Elo initialization.
-
 ### Final held-out test (2018/19)
 
 | Metric | Result |
@@ -143,7 +130,7 @@ The notebook uses paths relative to the `notebooks/` folder (`../data/understat_
 
 2. **Preventing data leakage:** Every feature had to be known before kickoff: rolling averages use `shift(1)`, league positions are recorded before each match day, Elo ratings are stored before each update, and the data is split chronologically with a test season used only once.
 
-3. **Reading small differences honestly:** Many Elo configurations and the promoted-team experiment differed by only a few correct predictions out of about 2,000 matches. I learned to treat such differences as noise rather than as real improvements.
+3. **Reading small differences honestly:** Many Elo configurations differed by only a few correct predictions out of about 2,000 matches. I learned to treat such differences as noise rather than as real improvements.
 
 4. **Looking beyond accuracy:** Macro F1, Log Loss, and confusion matrices showed that the model almost never predicts draws, a limitation that accuracy alone hides.
 
